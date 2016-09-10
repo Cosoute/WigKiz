@@ -171,11 +171,13 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 					// Turn off logging
 					if (mUsbPresent) 
 						doUpdateServiceLogs(mLogPath.toString(), false);
-
+					
+					removeLocationServices();
 					mUsbPresent = false;
 					mUsbType = "";
 					mUsbInfo = "";
 					mLastChannel = 0;
+					
 				}
 
 				updateUi = true;
@@ -587,6 +589,7 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 				if (mLocalLogging) {
 					mLocalLogging = false;
 					doUpdateServiceLogs(null, false);
+					removeLocationServices();
 				} else {
 					mLocalLogging = true;
 					AlertDialog.Builder builder1 = new AlertDialog.Builder(mContext);
@@ -685,6 +688,7 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 	@Override
 	public void onStop() {
 		super.onStop();
+		removeLocationServices();
 		if (mGoogleApiClient != null) {
 			mGoogleApiClient.disconnect();
 		}
@@ -696,6 +700,7 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 		super.onDestroy();
 
 		mContext.unregisterReceiver(mUsbReceiver);
+		removeLocationServices();
 		doUnbindService();
 	}
 
@@ -948,6 +953,18 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
                 }
             }
         }
+    }
+    
+    private void removeLocationServices()
+    {
+    
+    	  final LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+          if ( state.gpsListener != null ) {
+              // remove any old requests
+              locationManager.removeUpdates( state.gpsListener );
+              locationManager.removeGpsStatusListener( state.gpsListener );
+          }
     }
 
     private void setupLocation() {
