@@ -40,7 +40,10 @@ import android.hardware.usb.UsbManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 import android.os.Build;
 import android.os.Bundle;
@@ -51,6 +54,7 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -602,6 +606,7 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 					snow = snow.replace(":", "-");
 					mLogPath = new File(mLogDir + "/android-" + snow + ".cap");
 					mGpsPath = new File(mLogDir + "/android-gps-" + snow + ".txt");
+					updatePhoneInformation();
 					updateGPSLocation();
 					 setLocationUpdates();
 					doUpdateServiceLogs(mLogPath.toString(), true);
@@ -678,7 +683,70 @@ public class MainActivity extends Activity implements ConnectionCallbacks,OnConn
 		
 		}
 	}
+	
+	void updatePhoneInformation() {
+		JSONObject phoneDetails = new JSONObject();
+		JSONObject RSSIDetails = new JSONObject();
+		
+		TelephonyManager telephonyManager = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
+				
+		try {
+			
+			if(telephonyManager!=null){
+				phoneDetails.put("DeviceID",telephonyManager.getDeviceId() );
+				phoneDetails.put("IMSIID" ,telephonyManager.getSubscriberId());
+				phoneDetails.put("PhoneNumber" ,telephonyManager.getLine1Number());
+				phoneDetails.put("DeviceModel",android.os.Build.MODEL);
+				phoneDetails.put("DeviceName", android.os.Build.MANUFACTURER);
+				 
+				
+			}
+			
+			 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+			    NetworkInfo Info = cm.getActiveNetworkInfo();
+			    if (Info == null || !Info.isConnectedOrConnecting()) {
+			        Log.i("WIFI CONNECTION", "No connection");
+			    } else {
+			        int netType = Info.getType();
+			        int netSubtype = Info.getSubtype();
 
+			        if (netType == ConnectivityManager.TYPE_WIFI) {
+			        	WifiManager wifiManager = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+			            int linkSpeed = wifiManager.getConnectionInfo().getLinkSpeed();
+			            int rssi = wifiManager.getConnectionInfo().getRssi();
+			            Log.i("WIFI CONNECTION", "Wifi connection speed: "+linkSpeed + " rssi: "+rssi);
+
+			           RSSIDetails.put("NetType",netType );
+			           RSSIDetails.put("NetSubType" ,netSubtype);
+			           RSSIDetails.put("LinkSpeed" ,linkSpeed);
+			           RSSIDetails.put("RSSI",rssi);
+						
+			        //Need to get wifi strength
+			        } 
+			    }
+			
+			FileWriter file = new FileWriter(mGpsPath,true);
+			BufferedWriter bw = new BufferedWriter(file);
+			bw.newLine();
+			bw.append(phoneDetails.toString());
+			bw.newLine();
+			bw.newLine();
+			bw.append(RSSIDetails.toString());
+			bw.newLine();
+			bw.flush();
+			bw.close();
+			file.flush();
+		    file.close();   	
+		
+			
+		} catch (JSONException | IOException e) {
+			// TODO Auto-generated catch block
+			Log.d(LOGTAG, "Failed to add gps message: " + e.getLocalizedMessage());
+		}
+		
+		
+	}
+	
 	@Override
 	public void onNewIntent(Intent intent) {
 		// Replicate USB intents that come in on the single-top task
